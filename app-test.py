@@ -1,47 +1,56 @@
-from app import app
-import os
 import unittest
+import os
 import tempfile
+
+import app
+
 
 class BasicTestCase(unittest.TestCase):
 
     def test_index(self):
-        tester = app.test_client(self)
-        response = tester.get('/', content_type = 'html/text')
-        self.assertEqual(response.status_code, 404)
-    
+        """Initial test: Ensure flask was set up correctly."""
+        tester = app.app.test_client(self)
+        response = tester.get('/', content_type='html/text')
+        self.assertEqual(response.status_code, 200)
+
     def test_database(self):
+        """Initial test: Ensure that the database exists."""
         tester = os.path.exists("flaskr.db")
-        self.assertTrue(tester)
+        self.assertEqual(tester, True)
 
-class FlaskRTestCase(unittest.TestCase):
 
-    def setup(self):
-        """Set up a blank temp database before each tests"""
+class FlaskrTestCase(unittest.TestCase):
+
+    def setUp(self):
+        """Set up a blank temp database before each test."""
         self.db_fd, app.app.config['DATABASE'] = tempfile.mkstemp()
         app.app.config['TESTING'] = True
         self.app = app.app.test_client()
         app.init_db()
-    
+
     def tearDown(self):
-        """destroys temp database after each tests"""
+        """Destroy blank temp database after each test."""
         os.close(self.db_fd)
         os.unlink(app.app.config['DATABASE'])
 
     def login(self, username, password):
-        """Login helper function"""
-        return self.app.post('/login', data = dict(username=username, password=password), follow_redirects = True)
+        """Login helper function."""
+        return self.app.post('/login', data=dict(
+            username=username,
+            password=password
+        ), follow_redirects=True)
 
     def logout(self):
-        """logout helper function"""
-        self.app.get('/logout', follow_redirects=True)
+        """Logout helper function."""
+        return self.app.get('/logout', follow_redirects=True)
 
-    #assert functions   
+    # assert functions
+
     def test_empty_db(self):
-        """ensure database is blank"""
+        """Ensure database is blank."""
         rv = self.app.get('/')
         assert b'No entries here so far' in rv.data
-    
+
     def test_login_logout(self):
         """Test login and logout using helper functions."""
         rv = self.login(
@@ -61,19 +70,21 @@ class FlaskRTestCase(unittest.TestCase):
             app.app.config['PASSWORD'] + 'x'
         )
         assert b'Invalid password' in rv.data
-    
+
     def test_messages(self):
         """Ensure that a user can post messages."""
         self.login(
             app.app.config['USERNAME'],
             app.app.config['PASSWORD']
         )
-        rv = app.post('/add', data = dict(title='<Hello>',
+        rv = self.app.post('/add_entry', data=dict(
+            title='<Hello>',
             text='<strong>HTML</strong> allowed here'
         ), follow_redirects=True)
         assert b'No entries here so far' not in rv.data
         assert b'&lt;Hello&gt;' in rv.data
         assert b'<strong>HTML</strong> allowed here' in rv.data
+
 
 if __name__ == '__main__':
     unittest.main()
